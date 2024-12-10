@@ -1,0 +1,2 @@
+Please solve the following problem and make sure to put your final inside \boxed{{}}. E.g. \boxed{{5}}, \boxed{{A}}, \boxed{{\frac{{5}}{{100}}}}.
+Here is the math problem: {problem}

@@ -1,0 +1,9 @@
+.env
+*.csv
+outputs/
+__pycache__/
+wandb
+.auto_gpu
+gpu_names_cache.json
+data/
+output/
