@@ -78,7 +78,7 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
     dtype='bfloat16',
     gpu_memory_utilization=0.95,
     max_model_len=cfg.model.max_length,
-    max_num_seqs=cfg.model.max_num_seqs
+    max_num_seqs=cfg.model.max_num_seqs,
   )
   
   tokenizer = llm.get_tokenizer()
