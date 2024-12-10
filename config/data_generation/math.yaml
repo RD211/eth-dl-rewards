@@ -23,7 +23,7 @@ huggingface:
   name: "eth-dl-rewards/pref-data-math"
   push_to_hub: true
   commit_message: "Added math data checkpoint"
-  continue_from_checkpoint: false
+  continue_from_checkpoint: true
 
 logging:
   wandb: true

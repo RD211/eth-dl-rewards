@@ -34,7 +34,14 @@ def boxed_math_score(response, answer):
     answer_sympy = try_parse_to_sympy(answer_core)
 
     if response_sympy is not None and answer_sympy is not None:
-        return simplify(response_sympy - answer_sympy) == 0
+        try:
+          return simplify(response_sympy - answer_sympy) == 0
+        except Exception as e:
+          print("There was an error in the simplification of the following expressions:")
+          print(response_sympy)
+          print(answer_sympy)
+          print(e)
+          return False
 
     # Fallback: they don't match and couldn't be parsed
     return False
