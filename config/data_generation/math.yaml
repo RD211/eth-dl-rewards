@@ -4,7 +4,7 @@ model:
   max_length: 4096
   top_k: 10000
   top_p: 1.0
-  max_num_seqs: 8
+  max_num_seqs: 11
 
 dataset:
   datasets:

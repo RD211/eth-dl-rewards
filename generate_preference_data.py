@@ -99,8 +99,6 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
       {"role": "user", "content": prompt}
     ]
 
-    messages = tokenizer.apply_chat_template(messages, tokenize=False)
-
     return {
       "problem": problem,
       "solution": solution,
@@ -139,17 +137,16 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
     
 
   # Generate preferences, we batch 
-  for idx in tqdm(range(index_offset, len(dataset['messages']), cfg.generation.problems_per_batch)):
+  for idx in tqdm(range(index_offset, len(dataset['messages']), cfg.generation.problems_per_batch), desc="Generating preferences"):
     problems = dataset['problem'][idx:idx+cfg.generation.problems_per_batch]
     solutions = dataset['solution'][idx:idx+cfg.generation.problems_per_batch]
     messages = dataset['messages'][idx:idx+cfg.generation.problems_per_batch]
 
     # Generate completions
     samples = [message for message in messages for _ in range(cfg.generation.num_samples_per_problem)]
-    completions = llm.generate(samples, sampling_params=sampling_params)
+    completions = llm.chat(samples, sampling_params=sampling_params)
     text_completions = [completion.outputs[0].text for completion in completions]
     
-
     # Compute preferences
     preferences: list[tuple[str, Preference]] = []
 
