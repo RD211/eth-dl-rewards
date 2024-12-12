@@ -21,3 +21,17 @@ python auto_gpu.py --run "python3 generate_preference_data.py --config-name=math
 ```
 One needs to set the same variables inside the `vast.ai interface` and also login locally to `vast.ai` by adding the ssh key to the website.
 You also be asked for password at some point in order to be allowed to copy the local files to remote.
+
+
+## Train
+
+```
+accelerate launch --config_file=deepspeed/1_1GPU.yaml train.py --config-name=math
+```
+
+
+```
+python auto_gpu.py --run "accelerate launch --config_file=deepspeed/1_1GPU.yaml train.py --config-name=math"  --disk 100 --filter "gpu_name=H100_SXM num_gpus=1 reliability>=0.99"
+```
+
+Also works with multiple gpus just select `3_4GPU.yaml` for 4 GPUs or change the config.

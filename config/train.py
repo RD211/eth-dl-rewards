@@ -1,10 +1,20 @@
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import Any, Optional
+
+@dataclass
+class LoraConfig:
+    enable: bool = False
+    rank: int = 32
+    alpha: float = 64
+    target_modules: Any = "all-linear"
+    dropout: float = 0.01
+    bias: str = 'none'
 
 @dataclass
 class ModelConfig:
     model_name_or_path: str = "internlm/internlm2-7b-reward"
     max_length: int = 4096
+    lora: LoraConfig = field(default_factory=LoraConfig)
 
 @dataclass
 class Dataset:
@@ -32,14 +42,6 @@ class LoggingConfig:
     wandb_tags: list[str] = field(default_factory=list)
     save_dir: str = "output"
 
-@dataclass
-class LoraConfig:
-    enable: bool = False
-    rank: int = 32
-    alpha: float = 64
-    target_modules: list[str] | str = "all-linear"
-    dropout: float = 0.01
-    bias: str = 'none'
 
 @dataclass
 class TrainConfig:
@@ -52,12 +54,12 @@ class TrainConfig:
     max_steps: int = -1
     deepspeed_config_path: Optional[str] = None
 
-    lora: LoraConfig = field(default_factory=LoraConfig)
 
     
 
 @dataclass
 class RewardModelTrainConfig:
+    train: TrainConfig = field(default_factory=TrainConfig)
     model: ModelConfig = field(default_factory=ModelConfig)
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     huggingface: HuggingFaceConfig = field(default_factory=HuggingFaceConfig)

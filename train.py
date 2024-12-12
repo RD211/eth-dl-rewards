@@ -7,9 +7,9 @@ from transformers import set_seed
 from dotenv import load_dotenv
 from accelerate import Accelerator
 from huggingface_hub import snapshot_download
-from transformers import AutoModel, AutoTokenizer
-from peft import LoraConfig
-from datasets import load_dataset
+from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
+from peft import LoraConfig, TaskType, get_peft_model
+from datasets import load_dataset, concatenate_datasets
 from trl import RewardTrainer, RewardConfig
 load_dotenv()
 
@@ -35,7 +35,7 @@ def main(cfg: RewardModelTrainConfig):
 
     set_seed(cfg.seed)
 
-    if logging_config.enable_wandb and accelerator.is_main_process:
+    if logging_config.wandb and accelerator.is_main_process:
         wandb.init(
             project=logging_config.wandb_project,
             name=logging_config.wandb_run_name,
@@ -53,14 +53,14 @@ def main(cfg: RewardModelTrainConfig):
     
     accelerator.wait_for_everyone()
     model = AutoModel.from_pretrained(model_config.model_name_or_path, 
-                                                 trust_remote_code=True, 
-                                                 use_cache=False)
+                                    trust_remote_code=True, 
+                                    use_cache=False)
     tokenizer = AutoTokenizer.from_pretrained(model_config.model_name_or_path, trust_remote_code=True)
 
     peft_config = None
     if lora_config.enable:
         peft_config = LoraConfig(
-          task_type="classification",
+          task_type=TaskType.SEQ_CLS,
           r = lora_config.rank,
           lora_alpha=lora_config.alpha,
           target_modules=lora_config.target_modules,
@@ -68,8 +68,33 @@ def main(cfg: RewardModelTrainConfig):
           bias=lora_config.bias
         )
 
+        model = get_peft_model(model, peft_config)
+        model.print_trainable_parameters()
+
     logger.info('Getting dataset')
-    dataset = load_dataset(data_config.dataset, split=data_config.split)
+    # Load the datasets
+    datasets = []
+    for dataset in cfg.dataset.datasets:
+        dataset = load_dataset(dataset.name_or_path, split=dataset.split)
+        datasets.append(dataset)
+
+    # We sample based on max_examples and ratios.
+    if cfg.dataset.max_examples is not None:
+        ratios = [dataset.ratio for dataset in cfg.dataset.datasets]
+        total_ratio = sum(ratios)
+        num_samples = cfg.dataset.max_examples
+
+        # Sample based on ratios
+        samples_per_dataset = [int(num_samples * ratio / total_ratio) for ratio in ratios]
+        for i, dataset in enumerate(datasets):
+            datasets[i] = dataset.shuffle(
+                seed=cfg.seed
+            ).select(range(samples_per_dataset[i]))
+
+    # Concatenate the datasets
+    dataset = concatenate_datasets(datasets)
+
+    logger.info(dataset)
 
     # Preprocess the dataset.
     def format_data(example):
@@ -77,15 +102,15 @@ def main(cfg: RewardModelTrainConfig):
         rejected = example['rejected']
         problem = example['problem']
         
-        message_chosen = {
-            {"role": "user", "text": problem},
-            {"role": "assistant", "text": accepted}
-        }
+        message_chosen = [
+            {"role": "user", "content": problem},
+            {"role": "assistant", "content": accepted}
+        ]
 
-        message_rejected = {
-            {"role": "user", "text": problem},
-            {"role": "assistant", "text": rejected}
-        }
+        message_rejected = [
+            {"role": "user", "content": problem},
+            {"role": "assistant", "content": rejected}
+        ]
 
         return {
             "chosen": message_chosen,
@@ -94,13 +119,11 @@ def main(cfg: RewardModelTrainConfig):
     
     dataset = dataset.map(format_data)
 
-    
-    
     trainer = RewardTrainer(
         model=model,
         args=RewardConfig(
             bf16=True,
-            run_name=cfg.logging.run_name,
+            run_name=cfg.logging.wandb_run_name,
             gradient_accumulation_steps=train_config.gradient_accumulation_steps,
             gradient_checkpointing=train_config.gradient_checkpointing,
             per_device_train_batch_size=train_config.per_device_train_batch_size,
@@ -108,7 +131,6 @@ def main(cfg: RewardModelTrainConfig):
             hub_private_repo=False,
             report_to=["wandb"] if logging_config.wandb else [],
             output_dir=cfg.logging.save_dir,
-            max_seq_length=model_config.max_model_len,
             save_strategy='no',
             lr_scheduler_type=train_config.lr_scheduler_type,
             optim=train_config.optimizer,
@@ -117,7 +139,7 @@ def main(cfg: RewardModelTrainConfig):
             logging_steps=1,
         ),
         train_dataset=dataset,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         peft_config=peft_config,
     )
 
@@ -127,7 +149,7 @@ def main(cfg: RewardModelTrainConfig):
     logger.info(train_results)
 
     kwargs = {
-        "dataset_name": data_config.dataset,
+        "dataset_name": ','.join([dataset.name_or_path for dataset in cfg.dataset.datasets]),
         "tags": cfg.logging.wandb_tags,
     }
 

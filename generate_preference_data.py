@@ -121,6 +121,7 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
   if cfg.huggingface.continue_from_checkpoint:
     # We load the preference data from huggingface
     checkpoint_data = load_dataset(cfg.huggingface.name, split="train")
+
     # We convert this into the format we need
     accepted = checkpoint_data['accepted']
     rejected = checkpoint_data['rejected']

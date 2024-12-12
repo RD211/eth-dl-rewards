@@ -14,7 +14,7 @@ pydantic
 trl
 vastai
 peft
-deepspeed
+deepspeed==0.15.4
 cachetools
 scikit-learn
 evaluate

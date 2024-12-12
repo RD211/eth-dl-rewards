@@ -11,13 +11,13 @@ dataset:
     - name_or_path: "AI-MO/NuminaMath-CoT"
       split: "train"
       ratio: 1.0
-  max_examples: 5000
+  max_examples: 20000
   ground_truth_type: "math" # math / mcq / freeform
 
 generation:
   num_samples_per_problem: 8
   prompt_template_path: "prompt_templates/math.txt"
-  problems_per_batch: 100
+  problems_per_batch: 1000
 
 huggingface:
   name: "eth-dl-rewards/pref-data-math"
@@ -28,7 +28,7 @@ huggingface:
 logging:
   wandb: true
   wandb_project: "pref-data"
-  wandb_run_name: "math-test-1"
+  wandb_run_name: "math-test-h100"
   wandb_entity: "eth-dl-rewards"
   run_group: "math"
   wandb_tags: ["math"]
