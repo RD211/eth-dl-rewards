@@ -1,16 +1,18 @@
 import hydra
+import torch
+from tqdm import tqdm
 import wandb
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from config.train import RewardModelTrainConfig 
+from config.train_ppo_model import PPOModelTrainingConfig 
 from transformers import set_seed
 from dotenv import load_dotenv
 from accelerate import Accelerator
 from huggingface_hub import snapshot_download
-from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer, AutoModelForCausalLM, AutoModel
 from peft import LoraConfig, TaskType, get_peft_model
 from datasets import load_dataset, concatenate_datasets
-from trl import RewardTrainer, RewardConfig
+from trl import PPOConfig, PPOTrainer
 load_dotenv()
 
 # logging
@@ -19,15 +21,18 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=RewardModelTrainConfig)
+cs.store(name="config", node=PPOModelTrainingConfig)
 
-@hydra.main(config_path="config/train", version_base=None)
-def main(cfg: RewardModelTrainConfig):
+@hydra.main(config_path="config/train_ppo_model", version_base=None)
+def main(cfg: PPOModelTrainingConfig):
 
     accelerator = Accelerator()
+    device = accelerator.device
 
     # Configs
     model_config = cfg.model
+    reward_model_config = cfg.reward_model
+    sampling_params = cfg.sampling_params
     train_config = cfg.train
     logging_config = cfg.logging
     lora_config = model_config.lora
@@ -52,10 +57,22 @@ def main(cfg: RewardModelTrainConfig):
         snapshot_download(model_config.model_name_or_path)
     
     accelerator.wait_for_everyone()
-    model = AutoModel.from_pretrained(model_config.model_name_or_path, 
+
+
+    # Load the model
+    model = AutoModelForCausalLM.from_pretrained(model_config.model_name_or_path, 
                                     trust_remote_code=True, 
-                                    use_cache=False)
+                                    use_cache=False).to(device)
+        
     tokenizer = AutoTokenizer.from_pretrained(model_config.model_name_or_path, trust_remote_code=True)
+
+    # Load reward model
+    reward_model = AutoModel.from_pretrained(reward_model_config.model_name_or_path, 
+                                    trust_remote_code=True, 
+                                    use_cache=False).to(device)
+    
+    reward_tokenizer = AutoTokenizer.from_pretrained(reward_model_config.model_name_or_path, trust_remote_code=True)
+
 
     peft_config = None
     if lora_config.enable:
@@ -89,7 +106,7 @@ def main(cfg: RewardModelTrainConfig):
         for i, dataset in enumerate(datasets):
             datasets[i] = dataset.shuffle(
                 seed=cfg.seed
-            ).select(range(samples_per_dataset[i]))
+            ).skip(cfg.dataset.datasets[i].skip).select(range(samples_per_dataset[i]))
 
     # Concatenate the datasets
     dataset = concatenate_datasets(datasets)
@@ -98,55 +115,74 @@ def main(cfg: RewardModelTrainConfig):
 
     # Preprocess the dataset.
     def format_data(example):
-        accepted = example['accepted']
-        rejected = example['rejected']
         problem = example['problem']
-        
-        message_chosen = [
-            {"role": "user", "content": problem},
-            {"role": "assistant", "content": accepted}
-        ]
-
-        message_rejected = [
-            {"role": "user", "content": problem},
-            {"role": "assistant", "content": rejected}
-        ]
-
         return {
-            "chosen": message_chosen,
-            "rejected": message_rejected
+            "query": problem,
         }
     
     dataset = dataset.map(format_data)
 
-    trainer = RewardTrainer(
-        model=model,
-        args=RewardConfig(
-            bf16=True,
-            run_name=cfg.logging.wandb_run_name,
-            gradient_accumulation_steps=train_config.gradient_accumulation_steps,
-            gradient_checkpointing=train_config.gradient_checkpointing,
-            per_device_train_batch_size=train_config.per_device_train_batch_size,
-            hub_model_id=cfg.huggingface.name,
-            hub_private_repo=False,
-            report_to=["wandb"] if logging_config.wandb else [],
-            output_dir=cfg.logging.save_dir,
-            save_strategy='no',
-            lr_scheduler_type=train_config.lr_scheduler_type,
-            optim=train_config.optimizer,
-            num_train_epochs=train_config.epochs,
-            max_steps=train_config.max_steps,
-            logging_steps=1,
-        ),
-        train_dataset=dataset,
-        processing_class=tokenizer,
-        peft_config=peft_config,
+    ppo_config = PPOConfig(
+        model_name=model_config.model_name_or_path,
+        bf16=True,
+        run_name=cfg.logging.wandb_run_name,
+        gradient_accumulation_steps=train_config.gradient_accumulation_steps,
+        gradient_checkpointing=train_config.gradient_checkpointing,
+        per_device_train_batch_size=train_config.per_device_train_batch_size,
+        hub_model_id=cfg.huggingface.name,
+        hub_private_repo=False,
+        report_to=["wandb"] if logging_config.wandb else [],
+        output_dir=cfg.logging.save_dir,
+        save_strategy='no',
+        lr_scheduler_type=train_config.lr_scheduler_type,
+        optim=train_config.optimizer,
+        num_train_epochs=train_config.epochs,
+        max_steps=train_config.max_steps,
+        logging_steps=1,
+        max_seq_length=model_config.max_length,
     )
 
-    logger.info("Training...")
-    train_results = trainer.train()
+    ppo_trainer = PPOTrainer(
+        model = model,
+        config=ppo_config,
+        train_dataset=dataset,
+        tokenizer=tokenizer,
+    )
+
+    logger.info("Starting training")
+
+    generation_kwargs = {
+      "min_length": -1,
+      "top_k": sampling_params.top_k,
+      "top_p": sampling_params.top_p,
+      "temperature": sampling_params.temperature,
+      "do_sample": True,
+      "pad_token_id": tokenizer.eos_token_id,
+    }
+
+
+    for epoch, batch in tqdm(enumerate(ppo_trainer.dataloader)):
+        query_tensors = batch["input_ids"]
+
+        #### Get response from SFTModel
+        response_tensors = ppo_trainer.generate(query_tensors, **generation_kwargs)
+        batch["response"] = [tokenizer.decode(r.squeeze()) for r in response_tensors]
+
+        #### Compute reward score
+        texts = [[{"role": "user", "content": q}, {"role": "assistant", "content": r}] for q, r in zip(batch["query"], batch["response"])]
+        encoded = reward_tokenizer(texts, return_tensors='pt', truncation=True, max_length=model_config.max_length, padding=True).to(device)
+        with torch.no_grad():
+            outputs = reward_model(**encoded)
+            rewards = outputs.logits[:, 0].tolist()
+            del encoded, outputs
+
+        rewards = [torch.tensor(reward) for reward in rewards]
+
+        #### Run PPO step
+        stats = ppo_trainer.step(query_tensors, response_tensors, rewards)
+        ppo_trainer.log_stats(stats, batch, rewards)
+
     logger.info("Training complete!")
-    logger.info(train_results)
 
     kwargs = {
         "dataset_name": ','.join([dataset.name_or_path for dataset in cfg.dataset.datasets]),
@@ -154,15 +190,12 @@ def main(cfg: RewardModelTrainConfig):
     }
 
     if accelerator.is_main_process:
-        trainer.create_model_card(**kwargs)
-        trainer.model.config.use_cache = True
+        ppo_trainer.create_model_card(**kwargs)
+        ppo_trainer.model.config.use_cache = True
 
     if cfg.huggingface.push_to_hub:
         logger.info("Pushing to hub...")
-        trainer.push_to_hub()
-
-        
-    
+        ppo_trainer.push_to_hub()
 
 if __name__ == "__main__":
     main()

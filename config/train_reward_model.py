@@ -15,6 +15,7 @@ class ModelConfig:
     model_name_or_path: str = "internlm/internlm2-7b-reward"
     max_length: int = 4096
     lora: LoraConfig = field(default_factory=LoraConfig)
+    already_reward_model: bool = True
 
 @dataclass
 class Dataset:

@@ -6,6 +6,8 @@ HF_TOKEN=<token>
 WANDB_API_KEY=<wandb_api_key>
 ```
 
+
+## Generate preference data
 one can run preference data generation like:
 ```
 python generate_preference_data.py --config-name="math"
@@ -26,12 +28,15 @@ You also be asked for password at some point in order to be allowed to copy the 
 ## Train
 
 ```
-accelerate launch --config_file=deepspeed/1_1GPU.yaml train.py --config-name=math
+accelerate launch --config_file=deepspeed/1_1GPU.yaml train_reward_model.py --config-name=math
 ```
 
 
 ```
-python auto_gpu.py --run "accelerate launch --config_file=deepspeed/1_1GPU.yaml train.py --config-name=math"  --disk 100 --filter "gpu_name=H100_SXM num_gpus=1 reliability>=0.99"
+python auto_gpu.py --run "accelerate launch --config_file=deepspeed/1_1GPU.yaml train_reward_model.py --config-name=math"  --disk 100 --filter "gpu_name=H100_SXM num_gpus=1 reliability>=0.99"
 ```
 
 Also works with multiple gpus just select `3_4GPU.yaml` for 4 GPUs or change the config.
+
+## Eval
+

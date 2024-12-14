@@ -21,6 +21,7 @@ class Dataset:
     name_or_path: str = "AI-MO/NuminaMath-CoT"
     split: str = "train"
     ratio: float = 1.0
+    skip: int = 0
 
 @dataclass
 class DatasetConfig:
@@ -48,15 +49,10 @@ class LoggingConfig:
     save_locally: bool = True
 
 @dataclass
-class PreferenceConfig:
-    max_number_of_preferences_per_problem: int = 4
-
-@dataclass
-class DataGenerationConfig:
+class SFTDataGenerationConfig:
     model: ModelConfig = field(default_factory=ModelConfig)
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     generation: GenerationConfig = field(default_factory=GenerationConfig)
     huggingface: HuggingFaceConfig = field(default_factory=HuggingFaceConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)
-    preference: PreferenceConfig = field(default_factory=PreferenceConfig)
     seed: int = 42

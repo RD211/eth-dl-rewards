@@ -301,7 +301,7 @@ def main():
         try:
             result = subprocess.run(ssh_command_str, shell=True)
             console.print("[green]Command executed successfully on the instance.[/green]")
-            if not keep_instance:
+            if not keep_instance and not detach:
                 try:
                     console.print(f"[cyan]Destroying instance {instance_id}...[/cyan]")
                     destroy_command = ['vastai', 'destroy', 'instance', instance_id]

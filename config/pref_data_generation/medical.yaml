@@ -4,34 +4,34 @@ model:
   max_length: 4096
   top_k: 10000
   top_p: 1.0
-  max_num_seqs: 11
+  max_num_seqs: 128
 
 dataset:
   datasets:
-    - name_or_path: "AI-MO/NuminaMath-CoT"
+    - name_or_path: "eth-dl-rewards/data-medical"
       split: "train"
       ratio: 1.0
-  max_examples: 20000
-  ground_truth_type: "math" # math / mcq / freeform
+  max_examples: 100000
+  ground_truth_type: "medical"
 
 generation:
   num_samples_per_problem: 8
-  prompt_template_path: "prompt_templates/math.txt"
-  problems_per_batch: 1000
+  prompt_template_path: "prompt_templates/medical.txt"
+  problems_per_batch: 4000
 
 huggingface:
-  name: "eth-dl-rewards/pref-data-math"
+  name: "eth-dl-rewards/pref-data-medical"
   push_to_hub: true
-  commit_message: "Added math data checkpoint"
+  commit_message: "Added medical data checkpoint"
   continue_from_checkpoint: true
 
 logging:
   wandb: true
   wandb_project: "pref-data"
-  wandb_run_name: "math-test-h100"
+  wandb_run_name: "medical-100k"
   wandb_entity: "eth-dl-rewards"
-  run_group: "math"
-  wandb_tags: ["math"]
+  run_group: "medical"
+  wandb_tags: ["medical"]
   save_every: 1
   save_dir: "output"
   save_locally: true

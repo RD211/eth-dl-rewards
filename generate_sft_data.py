@@ -2,20 +2,18 @@ import os
 import hydra
 import torch
 import pandas as pd
-import numpy as np
 import time
 from tqdm import tqdm
 from omegaconf import OmegaConf
 from datasets import load_dataset, concatenate_datasets, Dataset
 from vllm import LLM, SamplingParams
 from hydra.core.config_store import ConfigStore
-from config.data_generation import DataGenerationConfig
+from config.sft_data_generation import SFTDataGenerationConfig
 from utils.preference import preference_function as PREF_FUNC
-from utils.preference import Preference
 from huggingface_hub import HfApi
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=DataGenerationConfig)
+cs.store(name="config", node=SFTDataGenerationConfig)
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -25,8 +23,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-@hydra.main(config_path="config/pref_data_generation", version_base=None)
-def generate_preference_data(cfg: DataGenerationConfig) -> None:
+@hydra.main(config_path="config/sft_data_generation", version_base=None)
+def generate_eval_data(cfg: SFTDataGenerationConfig) -> None:
   logger.info(f"Configuration: {cfg}")
 
   # We create output directory
@@ -64,7 +62,7 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
     for i, dataset in enumerate(datasets):
       datasets[i] = dataset.shuffle(
         seed=cfg.seed
-      ).select(range(samples_per_dataset[i]))
+      ).skip(cfg.dataset.datasets[i].skip).select(range(samples_per_dataset[i]))
   
   # Concatenate the datasets
   dataset = concatenate_datasets(datasets)
@@ -113,18 +111,20 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
 
   preference_function = PREF_FUNC[cfg.dataset.ground_truth_type]
 
-  preference_data: list[tuple[str, Preference]] = []
+  sft_data: list[tuple[str, str]] = []
 
   if cfg.huggingface.continue_from_checkpoint:
-    # We load the preference data from huggingface
+    # We load the ranking data from huggingface
     checkpoint_data = load_dataset(cfg.huggingface.name, split="train")
 
     # We convert this into the format we need
-    accepted = checkpoint_data['accepted']
-    rejected = checkpoint_data['rejected']
-    problem = checkpoint_data['problem']
-    for row_idx in range(len(problem)):
-      preference_data.append((problem[row_idx], Preference(accepted=accepted[row_idx], rejected=rejected[row_idx])))
+    solutions = list(checkpoint_data['solution'])
+    problems = list(checkpoint_data['problem'])
+    
+    for row_idx in range(len(problems)):
+      problem = problems[row_idx]
+      solution = solutions[row_idx]
+      sft_data.append((problem, solution))
 
     # We get last commit message
     commit_message = HfApi().list_repo_commits(cfg.huggingface.name, repo_type='dataset')[0].message
@@ -134,7 +134,6 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
   index_offset = last_index + 1 if cfg.huggingface.continue_from_checkpoint else 0
     
 
-  # Generate preferences, we batch 
   for idx in tqdm(range(index_offset, len(dataset['messages']), cfg.generation.problems_per_batch), desc="Generating preferences"):
     problems = dataset['problem'][idx:idx+cfg.generation.problems_per_batch]
     solutions = dataset['solution'][idx:idx+cfg.generation.problems_per_batch]
@@ -145,37 +144,33 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
     completions = llm.chat(samples, sampling_params=sampling_params)
     text_completions = [completion.outputs[0].text for completion in completions]
     
-    # Compute preferences
-    preferences: list[tuple[str, Preference]] = []
+    current_sft_data: list[tuple[str, str]] = []
 
     for i in range(len(problems)):
       problem = problems[i]
       solution = solutions[i]
       responses = text_completions[i*cfg.generation.num_samples_per_problem:(i+1)*cfg.generation.num_samples_per_problem]
-      pref_gen = preference_function(responses, solution, cfg.preference.max_number_of_preferences_per_problem)
-      preferences.extend([(problem, pref) for pref in pref_gen])
+      pref_gen = preference_function(responses, solution, 1)
+      if len(pref_gen) > 0:
+        current_sft_data.append((problem, pref_gen[0].accepted))
 
-    # Add to preference data
-    preference_data.extend(preferences)
+    # Add to rank data
+    sft_data.extend(current_sft_data)
 
     
-    # Save the preference data
     if idx % cfg.logging.save_every == 0 or idx >= len(dataset['messages']) - cfg.generation.problems_per_batch:
-      
-      logger.info(f"Saving preference data for batch {idx}")
+      logger.info(f"Saving sft data for batch {idx}")
       transformed_preference_data = []
-      for problem, pref in preference_data:
+      for problem, solution in sft_data:
         transformed_preference_data.append({
           "problem": problem,
-          "accepted": pref.accepted,
-          "rejected": pref.rejected
+          "solution": solution
         })
 
-      # 3 Columns problem, accepted, rejected
       df = pd.DataFrame(transformed_preference_data)
 
       if cfg.logging.save_locally:
-        df.to_csv(os.path.join(cfg.logging.save_dir, f"preference_data_{idx}_{time.time()}_{cfg.logging.wandb_run_name}.csv"))
+        df.to_csv(os.path.join(cfg.logging.save_dir, f"sft_data_{idx}_{time.time()}_{cfg.logging.wandb_run_name}.csv"))
       
 
       # Push to huggingface
@@ -186,11 +181,6 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
           commit_message=cfg.huggingface.commit_message + f" {idx + cfg.generation.problems_per_batch}",
           commit_description=str(idx + cfg.generation.problems_per_batch)
         )
-        
-    
-
-
-
 
 if __name__ == "__main__":
-  generate_preference_data()
+  generate_eval_data()
