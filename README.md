@@ -40,3 +40,8 @@ Also works with multiple gpus just select `3_4GPU.yaml` for 4 GPUs or change the
 
 ## Eval
 
+```
+python auto_gpu.py --run "accelerate launch --config_file deepspeed/1_1GPU.yaml eval.py --config-name=math_0k.yaml;accelerate launch --config_file deepspeed/1_1GPU.yaml eval.py --config-name=math_30k.yaml;accelerate launch --config_file deepspeed/1_1GPU.yaml eval.py --config-name=math_60k.yaml;accelerate launch --config_file deepspeed/1_1GPU.yaml eval.py --config-name=math_100k.yaml" --disk 100 --filter "gpu_name=L40S num_gpus=1 reliability>=0.99"
+```
+
+python auto_gpu.py --run "accelerate launch --config_file deepspeed/1_1GPU.yaml eval.py --config-name=math_scratch.yaml" --disk 100 --filter "gpu_name=L40S num_gpus=1 reliability>=0.99"

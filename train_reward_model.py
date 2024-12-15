@@ -7,7 +7,7 @@ from transformers import set_seed
 from dotenv import load_dotenv
 from accelerate import Accelerator
 from huggingface_hub import snapshot_download
-from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
 from peft import LoraConfig, TaskType, get_peft_model
 from datasets import load_dataset, concatenate_datasets
 from trl import RewardTrainer, RewardConfig
@@ -58,11 +58,9 @@ def main(cfg: RewardModelTrainConfig):
                                         trust_remote_code=True, 
                                         use_cache=False)
     else:
-        model = AutoModelForSequenceClassification.from_pretrained(model_config.model_name_or_path, 
-                                        trust_remote_code=True, 
-                                        use_cache=False)
+        model = AutoModel.from_pretrained(model_config.model_name_or_path, trust_remote_code=True)
         
-    tokenizer = AutoTokenizer.from_pretrained(model_config.model_name_or_path, trust_remote_code=True)
+    tokenizer = AutoTokenizer.from_pretrained(model_config.tokenizer_name_or_path, trust_remote_code=True)
 
     peft_config = None
     if lora_config.enable:

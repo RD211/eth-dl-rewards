@@ -1,7 +1,8 @@
 model:
-  model_name_or_path: "meta-llama/Llama-3.1-8B"
+  model_name_or_path: "internlm/internlm2-7b"
+  tokenizer_name_or_path: "internlm/internlm2-7b-reward"
   max_length: 4096
-  already_reward_model: true
+  already_reward_model: false
   lora:
     enable: true
     rank: 32
@@ -12,22 +13,22 @@ model:
 
 dataset:
   datasets: 
-    - name_or_path: "eth-dl-rewards/sft-data-math"
+    - name_or_path: "eth-dl-rewards/pref-data-math"
       split: "train"
       ratio: 1.0
   max_examples: 100000
 
 huggingface:
-  name: "eth-dl-rewards/llama-3.1-8b-sft-math"
+  name: "eth-dl-rewards/internlm2-7b-reward-math-100k-scratch"
   push_to_hub: true
 
 logging:
   wandb: true
-  wandb_project: "train-sft"
-  wandb_run_name: "llama-3.1-8b-sft-math"
+  wandb_project: "train-rm"
+  wandb_run_name: "intern-lm-7b-reward-math-100k-scratch"
   wandb_entity: "eth-dl-rewards"
   run_group: "math"
-  wandb_tags: ["math", "sft"]
+  wandb_tags: ["math", "100k", "scratch"]
   save_dir: "output"
 
 train:

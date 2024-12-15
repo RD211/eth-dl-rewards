@@ -1,0 +1,23 @@
+model:
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-math-100k-scratch"
+
+dataset:
+  datasets:
+    - name_or_path: "eth-dl-rewards/pref-data-math"
+      split: "eval"
+      ratio: 1.0
+  
+  max_examples: 50000
+
+logging:
+  wandb: true
+  wandb_project: "eval-rm"
+  wandb_run_name: "internlm2-7b-reward-math-100k-scratch"
+  wandb_entity: "eth-dl-rewards"
+  run_group: "math"
+  wandb_tags: ["math"]
+  save_every: 1
+  save_dir: "output"
+  save_locally: true
+
+seed: 42
