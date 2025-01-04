@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from accelerate import Accelerator
 from huggingface_hub import snapshot_download
 from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
-from peft import LoraConfig, TaskType, get_peft_model
+from peft import LoraConfig, TaskType, get_peft_model, PeftModel
 from datasets import load_dataset, concatenate_datasets
 from trl import RewardTrainer, RewardConfig
 load_dotenv()
@@ -123,7 +123,8 @@ def main(cfg: RewardModelTrainConfig):
         }
     
     dataset = dataset.map(format_data)
-
+    print(dataset)
+    
     trainer = RewardTrainer(
         model=model,
         args=RewardConfig(
@@ -146,7 +147,11 @@ def main(cfg: RewardModelTrainConfig):
         train_dataset=dataset,
         processing_class=tokenizer,
         peft_config=peft_config,
+        max_length=model_config.max_length,
     )
+    
+    print(dataset)
+    print(trainer.train_dataset)
 
     logger.info("Training...")
     train_results = trainer.train()

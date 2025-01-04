@@ -2,7 +2,7 @@ import re
 from dataclasses import dataclass
 from latex2sympy2 import latex2sympy
 from sympy import simplify
-
+from .code_pairs import code_preference, Testcases, GeneratedSolution
 @dataclass
 class Preference:
   accepted: str
@@ -126,7 +126,29 @@ def boxed_medical_preference(responses: list[str], answer: str, max_number_of_pa
   return preference_pairs[:max_number_of_pairs]
   
 
+def code_pref_wrapper(responses: list[str], testcases: str, max_number_of_pairs: int) -> list[Preference]:
+  responses = [GeneratedSolution(solution=r) for r in responses]
+  true = "true"
+  false = "false"
+  null = "null"
+  Infinity = "Infinity"
+  testcases = eval(testcases)
+  if 'fn_name' in testcases:
+      testcases = Testcases(
+          fn_name=testcases['fn_name'],
+          input=testcases['inputs'],
+          output=testcases['outputs']
+      )
+  else:
+      testcases = Testcases(
+          fn_name=None,
+          input=testcases['inputs'],
+          output=testcases['outputs']
+      )
+  return code_preference(responses, testcases, max_number_of_pairs)
+
 preference_function = {
   'math': boxed_math_preference,
-  'medical': boxed_medical_preference
+  'medical': boxed_medical_preference,
+  'code': code_pref_wrapper
 }

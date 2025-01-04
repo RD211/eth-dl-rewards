@@ -87,12 +87,20 @@ def generate_preference_data(cfg: DataGenerationConfig) -> None:
   # We apply chat template to each example in the dataset
   def apply_template(example):
     # We have a problem and solution column
-    problem = example["problem"]
-    solution = example["solution"]
-    prompt = prompt_template.format(problem=problem)
+    
+    if cfg.dataset.ground_truth_type == "code":
+      problem = example["question"]
+      solution = example["input_output"]
+      prompt = prompt_template.format(problem=problem)
+      starter_code = example["starter_code"]
+      if starter_code != "":
+        prompt += f"\nHere is a starter code that you must use, we will call this function when evaluating your code:\n{starter_code}"
+    else:
+      problem = example["problem"]
+      solution = example["solution"]
+      prompt = prompt_template.format(problem=problem)
 
     messages = [
-      # {"role": "system", "content": prompt},
       {"role": "user", "content": prompt}
     ]
 
