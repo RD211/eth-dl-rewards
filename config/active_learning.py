@@ -6,21 +6,17 @@ class ModelConfig:
     model_name_or_path: str = "eth-dl-rewards/internlm2-7b-reward-math-30k"
 
 @dataclass
-class Dataset:
-    name_or_path: str = "eth-dl-rewards/pref-data-math"
-    split: str = "eval"
-    ratio: float = 1.0
-
-@dataclass
 class DatasetConfig:
-    datasets: list[Dataset] = field(default_factory=list)
-    max_examples: Optional[int] = None
+    dataset_name_or_path: str = "eth-dl-rewards/active-learning-math-data-initial"
+    output_dataset_name_or_path: str = "eth-dl-rewards/active-learning-data"
+    pairs_to_select: int = 1000
     batch_size: int = 8
+    max_to_look_at: int = 40000
 
 @dataclass
 class LoggingConfig:
     wandb: bool = False
-    wandb_project: str = "eval-rm"
+    wandb_project: str = "active-learning-data"
     wandb_run_name: str = "internlm2-7b-reward-math-30k"
     wandb_entity: str = "eth-dl-rewards"
     run_group: str = "math"
@@ -29,8 +25,9 @@ class LoggingConfig:
     save_dir: str = "output"
     save_locally: bool = True
 
+
 @dataclass
-class EvalConfig:
+class ActiveLearningConfig:
     model: ModelConfig = field(default_factory=ModelConfig)
     dataset: DatasetConfig = field(default_factory=DatasetConfig)
     logging: LoggingConfig = field(default_factory=LoggingConfig)

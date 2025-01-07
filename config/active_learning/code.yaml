@@ -1,0 +1,22 @@
+model:
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-code-active"
+
+dataset:
+  dataset_name_or_path: "eth-dl-rewards/active-learning-code-data"
+  output_dataset_name_or_path: "eth-dl-rewards/active-learning-code-data"
+  pairs_to_select: 2500
+  batch_size: 8
+  max_to_look_at: 40000
+
+logging:
+  wandb: true
+  wandb_project: "active-learning-data"
+  wandb_run_name: "internlm2-7b-reward-code-active"
+  wandb_entity: "eth-dl-rewards"
+  run_group: "code"
+  wandb_tags: []
+  save_every: 1
+  save_dir: "output"
+  save_locally: true
+
+seed: 42

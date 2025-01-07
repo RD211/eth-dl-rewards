@@ -8,6 +8,7 @@ dataset:
       ratio: 1.0
   
   max_examples: 50000
+  batch_size: 8
 
 logging:
   wandb: true

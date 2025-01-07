@@ -1,5 +1,5 @@
 model:
-  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-code-to-math-60k"
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-math-7-5k"
 
 dataset:
   datasets:
@@ -8,15 +8,15 @@ dataset:
       ratio: 1.0
   
   max_examples: 50000
-  batch_size: 8
+  batch_size: 4
 
 logging:
   wandb: true
   wandb_project: "eval-rm"
-  wandb_run_name: "internlm2-7b-reward-code-to-math-60k"
+  wandb_run_name: "internlm2-7b-reward-math-7.5k"
   wandb_entity: "eth-dl-rewards"
-  run_group: "code->math"
-  wandb_tags: ["code->math"]
+  run_group: "math"
+  wandb_tags: ["math"]
   save_every: 1
   save_dir: "output"
   save_locally: true
