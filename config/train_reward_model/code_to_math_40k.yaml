@@ -1,7 +1,7 @@
 model:
-  model_name_or_path: "internlm/internlm2-7b-reward"
-  tokenizer_name_or_path: "internlm/internlm2-7b-reward"
-  max_length: 4096
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-code-60k-scratch-merged"
+  tokenizer_name_or_path: "eth-dl-rewards/internlm2-7b-reward-code-60k-scratch-merged"
+  max_length: 1024
   already_reward_model: true
   lora:
     enable: true
@@ -16,23 +16,23 @@ dataset:
     - name_or_path: "eth-dl-rewards/pref-data-math"
       split: "train"
       ratio: 1.0
-  max_examples: 100000
+  max_examples: 40000
 
 huggingface:
-  name: "eth-dl-rewards/internlm2-7b-reward-math-100k"
+  name: "eth-dl-rewards/internlm2-7b-reward-code-to-math-40k"
   push_to_hub: true
 
 logging:
   wandb: true
   wandb_project: "train-rm"
-  wandb_run_name: "intern-lm-7b-reward-math-100k"
+  wandb_run_name: "intern-lm-7b-reward-code-to-math-40k"
   wandb_entity: "eth-dl-rewards"
-  run_group: "math"
-  wandb_tags: ["math", "100k"]
+  run_group: "code->math"
+  wandb_tags: ["code->math", "40k"]
   save_dir: "output"
 
 train:
-  gradient_accumulation_steps: 4
+  gradient_accumulation_steps: 8
   gradient_checkpointing: false
   per_device_train_batch_size: 4
   lr_scheduler_type: "cosine"

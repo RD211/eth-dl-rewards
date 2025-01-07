@@ -14,22 +14,22 @@ model:
 
 dataset:
   datasets: 
-    - name_or_path: "eth-dl-rewards/pref-data-math"
+    - name_or_path: "eth-dl-rewards/pref-data-code"
       split: "train"
       ratio: 1.0
   max_examples: 60000
 
 huggingface:
-  name: "eth-dl-rewards/internlm2-7b-reward-math-60k-scratch"
+  name: "eth-dl-rewards/internlm2-7b-reward-code-60k-scratch"
   push_to_hub: true
 
 logging:
   wandb: true
   wandb_project: "train-rm"
-  wandb_run_name: "intern-lm-7b-reward-math-60k-scratch"
+  wandb_run_name: "intern-lm-7b-reward-code-60k-scratch"
   wandb_entity: "eth-dl-rewards"
-  run_group: "math"
-  wandb_tags: ["math", "60k", "scratch"]
+  run_group: "code"
+  wandb_tags: ["code", "60k", "scratch"]
   save_dir: "output"
 
 train:

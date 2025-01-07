@@ -1,5 +1,5 @@
 model:
-  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-math-100k-scratch"
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-reward-math-60k-scratch"
 
 dataset:
   datasets:
@@ -8,11 +8,12 @@ dataset:
       ratio: 1.0
   
   max_examples: 50000
+  batch_size: 8
 
 logging:
   wandb: true
   wandb_project: "eval-rm"
-  wandb_run_name: "internlm2-7b-reward-math-100k-scratch"
+  wandb_run_name: "internlm2-7b-reward-math-60k-scratch"
   wandb_entity: "eth-dl-rewards"
   run_group: "math"
   wandb_tags: ["math"]

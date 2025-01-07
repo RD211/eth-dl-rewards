@@ -99,8 +99,6 @@ def main(cfg: EvalConfig):
             {"role": "assistant", "content": rejected}
         ]
 
-        message_chosen = tokenizer.apply_chat_template(message_chosen, tokenize=False)
-        message_rejected = tokenizer.apply_chat_template(message_rejected, tokenize=False)
         return {
             "chosen": message_chosen,
             "rejected": message_rejected
@@ -114,30 +112,43 @@ def main(cfg: EvalConfig):
     model.eval()
     correct = 0
     total = 0
-    for i in tqdm(range(len(chosen_texts))):
-        chosen_inputs = tokenizer(chosen_texts[i], return_tensors='pt', truncation=True, max_length=4096).to(device)
-        rejected_inputs = tokenizer(rejected_texts[i], return_tensors='pt', truncation=True, max_length=4096).to(device)
+    batch_size = cfg.dataset.batch_size
+
+    # Calculate the number of batches
+    num_batches = len(chosen_texts) // batch_size + (1 if len(chosen_texts) % batch_size != 0 else 0)
+
+    for batch_idx in tqdm(range(num_batches)):
+        start_idx = batch_idx * batch_size
+        end_idx = min((batch_idx + 1) * batch_size, len(chosen_texts))
+
+        # Extract the current batch of texts
+        chosen_batch_texts = chosen_texts[start_idx:end_idx]
+        rejected_batch_texts = rejected_texts[start_idx:end_idx]
 
         with torch.no_grad():
-          outputs = model(**chosen_inputs)
-          reward_chosen = outputs.logits[0][0].item()
-          del outputs
+            # Compute scores for the chosen and rejected batches
+            scores_chosen = model.get_scores(tokenizer, chosen_batch_texts)
+            scores_rejected = model.get_scores(tokenizer, rejected_batch_texts)
 
-        with torch.no_grad():
-          outputs = model(**rejected_inputs)
-          reward_rejected = outputs.logits[0][0].item()
-          del outputs
+        # Compare rewards and update correct/total counts
+        try:
+            for score_chosen, score_rejected in zip(scores_chosen, scores_rejected):
+                if score_chosen > score_rejected:
+                    correct += 1
+                total += 1
+        except Exception as e:
+            logger.error(f"Error processing batch {batch_idx}: {e}")
+            if score_chosen > score_rejected:
+                correct += 1
+            total += 1
 
-        if reward_chosen > reward_rejected:
-          correct += 1
-        total += 1
+        if batch_idx % 10 == 0:
+            torch.cuda.empty_cache()
 
-        if i % 10 == 0:
-          torch.cuda.empty_cache()
+        if batch_idx % 10 == 0:
+            logger.info(f'Processed {batch_idx * batch_size} examples with accuracy {correct/total:.4f}')
+            wandb.log({'accuracy': correct / total})
 
-        if i % 100 == 0:
-            logger.info(f'Processed {i} examples with accuracy {correct/total}')
-            wandb.log({'accuracy': correct/total})
     
     logger.info(f'Final accuracy: {correct/total}')
     wandb.log({'final_accuracy': correct/total})
