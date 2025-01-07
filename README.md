@@ -1,10 +1,21 @@
 # Can Reward Models Transfer Across Domains in Large Language Models?
 
+
 ## Overview
 
 Reinforcement Learning from Human Feedback (RLHF) aligns language models (LMs) with human preferences by training reward models on preference data and optimizing LMs to maximize these rewards. However, obtaining effective reward models is resource-intensive and typically requires separate models for different tasks, leading to data inefficiencies. This repository investigates the transferability of reward models across domains in Large Language Models (LLMs) through fine-tuning.
 
 We hypothesize that fundamental logic can be captured by transferable reward models, which can be fine-tuned with minimal data for specific tasks. Additionally, we integrate an **Active Learning framework** to enhance data efficiency by iteratively selecting the most uncertain samples for fine-tuning. Our empirical investigations in mathematics and coding domains confirm the transferability of general-purpose reward models and the potential of cross-domain adaptability. Our findings also reveal that the performance of cross-domain adaptation depends on the source and target domains, hinting at the asymmetric nature of the inherent characteristics of different domains.
+
+## Pre-trained Models and Datasets 🤗
+
+- **Pre-trained Models**: All models are available on [Hugging Face 🤗](https://huggingface.co/eth-dl-rewards):
+  - [Math Reward Models](https://huggingface.co/eth-dl-rewards?search_models=math)
+  - [Code Reward Models](https://huggingface.co/eth-dl-rewards?search_models=code)
+  
+- **Datasets**: Access the generated preference datasets:
+  - [Math Preference Data](https://huggingface.co/datasets/eth-dl-rewards/pref-data-math)
+  - [Code Preference Data](https://huggingface.co/datasets/eth-dl-rewards/pref-data-code)
 
 ---
 
