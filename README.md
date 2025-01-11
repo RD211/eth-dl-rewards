@@ -12,7 +12,9 @@ We hypothesize that fundamental logic can be captured by transferable reward mod
 - **Pre-trained Models**: All models are available on [Hugging Face 🤗](https://huggingface.co/eth-dl-rewards):
   - [Math Reward Models](https://huggingface.co/eth-dl-rewards?search_models=math)
   - [Code Reward Models](https://huggingface.co/eth-dl-rewards?search_models=code)
-  
+  - [Math SFT Model](https://huggingface.co/eth-dl-rewards/internlm2-7b-sft-math)
+  - [Code SFT Model](https://huggingface.co/eth-dl-rewards/internlm2-7b-sft-code)
+
 - **Datasets**: Access the generated preference datasets:
   - [Math Preference Data](https://huggingface.co/datasets/eth-dl-rewards/pref-data-math)
   - [Code Preference Data](https://huggingface.co/datasets/eth-dl-rewards/pref-data-code)

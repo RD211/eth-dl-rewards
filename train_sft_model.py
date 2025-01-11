@@ -2,15 +2,15 @@ import hydra
 import wandb
 from omegaconf import OmegaConf
 from hydra.core.config_store import ConfigStore
-from config.train_reward_model import RewardModelTrainConfig 
+from config.train_sft_model import SFTModelTrainingConfig 
 from transformers import set_seed
 from dotenv import load_dotenv
 from accelerate import Accelerator
 from huggingface_hub import snapshot_download
-from transformers import AutoModel, AutoTokenizer, AutoModelForSequenceClassification, AutoConfig
-from peft import LoraConfig, TaskType, get_peft_model, PeftModel
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import LoraConfig, TaskType, get_peft_model
 from datasets import load_dataset, concatenate_datasets
-from trl import RewardTrainer, RewardConfig
+from trl import SFTTrainer, SFTConfig
 load_dotenv()
 
 # logging
@@ -19,10 +19,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 cs = ConfigStore.instance()
-cs.store(name="config", node=RewardModelTrainConfig)
+cs.store(name="config", node=SFTModelTrainingConfig)
 
-@hydra.main(config_path="config/train_reward_model", version_base=None)
-def main(cfg: RewardModelTrainConfig):
+@hydra.main(config_path="config/train_sft_model", version_base=None)
+def main(cfg: SFTModelTrainingConfig):
 
     accelerator = Accelerator()
 
@@ -53,15 +53,13 @@ def main(cfg: RewardModelTrainConfig):
     
     accelerator.wait_for_everyone()
 
-    if model_config.already_reward_model:
-        model = AutoModel.from_pretrained(model_config.model_name_or_path, 
-                                        trust_remote_code=True, 
-                                        use_cache=False)
-    else:
-        model = AutoModel.from_pretrained(model_config.model_name_or_path, trust_remote_code=True)
+
+    model = AutoModelForCausalLM.from_pretrained(model_config.model_name_or_path, 
+                                    trust_remote_code=True, 
+                                    use_cache=False)
         
     tokenizer = AutoTokenizer.from_pretrained(model_config.tokenizer_name_or_path, trust_remote_code=True)
-    
+
     peft_config = None
     if lora_config.enable:
         peft_config = LoraConfig(
@@ -103,31 +101,23 @@ def main(cfg: RewardModelTrainConfig):
 
     # Preprocess the dataset.
     def format_data(example):
-        accepted = example['accepted']
-        rejected = example['rejected']
+        solution = example['completion']
         problem = example['problem']
         
-        message_chosen = [
+        messages = [
             {"role": "user", "content": problem},
-            {"role": "assistant", "content": accepted}
+            {"role": "assistant", "content": solution}
         ]
-
-        message_rejected = [
-            {"role": "user", "content": problem},
-            {"role": "assistant", "content": rejected}
-        ]
-
+        text = tokenizer.apply_chat_template(messages, tokenize=False)
         return {
-            "chosen": message_chosen,
-            "rejected": message_rejected
+            "text": text,
         }
     
     dataset = dataset.map(format_data)
-    print(dataset)
-    
-    trainer = RewardTrainer(
+
+    trainer = SFTTrainer(
         model=model,
-        args=RewardConfig(
+        args=SFTConfig(
             bf16=True,
             run_name=cfg.logging.wandb_run_name,
             gradient_accumulation_steps=train_config.gradient_accumulation_steps,
@@ -143,15 +133,12 @@ def main(cfg: RewardModelTrainConfig):
             num_train_epochs=train_config.epochs,
             max_steps=train_config.max_steps,
             logging_steps=1,
+            max_seq_length=model_config.max_length,
         ),
         train_dataset=dataset,
         processing_class=tokenizer,
         peft_config=peft_config,
-        max_length=model_config.max_length,
     )
-    
-    print(dataset)
-    print(trainer.train_dataset)
 
     logger.info("Training...")
     train_results = trainer.train()

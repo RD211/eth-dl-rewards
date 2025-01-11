@@ -1,5 +1,5 @@
 model:
-  model_name_or_path: "eth-dl-rewards/internlm2-7b-mod"
+  model_name_or_path: "eth-dl-rewards/internlm2-7b-sft-code"
   tokenizer_name_or_path: "internlm/internlm2-7b-reward"
   max_length: 1024
   already_reward_model: false
@@ -20,22 +20,22 @@ dataset:
   max_examples: 60000
 
 huggingface:
-  name: "eth-dl-rewards/internlm2-7b-reward-code-60k-scratch"
+  name: "eth-dl-rewards/internlm2-7b-reward-code-60k-scratch-sft"
   push_to_hub: true
 
 logging:
   wandb: true
   wandb_project: "train-rm"
-  wandb_run_name: "intern-lm-7b-reward-code-60k-scratch"
+  wandb_run_name: "intern-lm-7b-reward-code-60k-scratch-sft"
   wandb_entity: "eth-dl-rewards"
   run_group: "code"
   wandb_tags: ["code", "60k", "scratch"]
   save_dir: "output"
 
 train:
-  gradient_accumulation_steps: 8
+  gradient_accumulation_steps: 16
   gradient_checkpointing: false
-  per_device_train_batch_size: 4
+  per_device_train_batch_size: 2
   lr_scheduler_type: "cosine"
   optimizer: "adamw_hf"
   epochs: 1

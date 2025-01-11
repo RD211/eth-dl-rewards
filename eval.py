@@ -82,6 +82,7 @@ def main(cfg: EvalConfig):
     dataset = concatenate_datasets(datasets)
 
     logger.info(dataset)
+    batch_size = cfg.dataset.batch_size
 
     # Preprocess the dataset.
     def format_data(example):
@@ -99,6 +100,9 @@ def main(cfg: EvalConfig):
             {"role": "assistant", "content": rejected}
         ]
 
+        if batch_size == 1:
+            message_chosen = tokenizer.apply_chat_template(message_chosen, tokenize=False)
+            message_rejected = tokenizer.apply_chat_template(message_rejected, tokenize=False)
         return {
             "chosen": message_chosen,
             "rejected": message_rejected
@@ -112,7 +116,6 @@ def main(cfg: EvalConfig):
     model.eval()
     correct = 0
     total = 0
-    batch_size = cfg.dataset.batch_size
 
     # Calculate the number of batches
     num_batches = len(chosen_texts) // batch_size + (1 if len(chosen_texts) % batch_size != 0 else 0)
@@ -124,23 +127,41 @@ def main(cfg: EvalConfig):
         # Extract the current batch of texts
         chosen_batch_texts = chosen_texts[start_idx:end_idx]
         rejected_batch_texts = rejected_texts[start_idx:end_idx]
+        if batch_size == 1:
+            chosen_inputs = tokenizer(chosen_texts[batch_idx], return_tensors='pt', truncation=True, max_length=4096).to(device)
+            rejected_inputs = tokenizer(rejected_texts[batch_idx], return_tensors='pt', truncation=True, max_length=4096).to(device)
 
-        with torch.no_grad():
-            # Compute scores for the chosen and rejected batches
-            scores_chosen = model.get_scores(tokenizer, chosen_batch_texts)
-            scores_rejected = model.get_scores(tokenizer, rejected_batch_texts)
+            with torch.no_grad():
+                outputs = model(**chosen_inputs)
+                reward_chosen = outputs.logits[0][0].item()
+                del outputs
 
-        # Compare rewards and update correct/total counts
-        try:
-            for score_chosen, score_rejected in zip(scores_chosen, scores_rejected):
-                if score_chosen > score_rejected:
-                    correct += 1
-                total += 1
-        except Exception as e:
-            logger.error(f"Error processing batch {batch_idx}: {e}")
-            if score_chosen > score_rejected:
+            with torch.no_grad():
+                outputs = model(**rejected_inputs)
+                reward_rejected = outputs.logits[0][0].item()
+                del outputs
+
+            if reward_chosen > reward_rejected:
                 correct += 1
             total += 1
+        else:
+
+            with torch.no_grad():
+                # Compute scores for the chosen and rejected batches
+                scores_chosen = model.get_scores(tokenizer, chosen_batch_texts)
+                scores_rejected = model.get_scores(tokenizer, rejected_batch_texts)
+
+                # Compare rewards and update correct/total counts
+                try:
+                    for score_chosen, score_rejected in zip(scores_chosen, scores_rejected):
+                        if score_chosen > score_rejected:
+                            correct += 1
+                        total += 1
+                except Exception as e:
+                    logger.error(f"Error processing batch {batch_idx}: {e}")
+                    if scores_chosen > scores_rejected:
+                        correct += 1
+                    total += 1
 
         if batch_idx % 10 == 0:
             torch.cuda.empty_cache()

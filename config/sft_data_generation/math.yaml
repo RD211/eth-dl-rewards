@@ -1,0 +1,42 @@
+model:
+  model_name_or_path: "meta-llama/Llama-3.1-8B-Instruct"
+  temperature: 0.9
+  max_length: 4096
+  top_k: 10000
+  top_p: 1.0
+  max_num_seqs: 11
+
+dataset:
+  datasets:
+    - name_or_path: "AI-MO/NuminaMath-CoT"
+      split: "train"
+      ratio: 1.0
+  max_examples: 1000
+  ground_truth_type: "math"
+
+generation:
+  num_samples_per_problem: 1
+  prompt_template_path: "prompt_templates/math.txt"
+  problems_per_batch: 100
+
+huggingface:
+  name: "eth-dl-rewards/sft-data-math"
+  push_to_hub: true
+  commit_message: "Added math data checkpoint"
+  continue_from_checkpoint: true
+
+logging:
+  wandb: true
+  wandb_project: "sft-data"
+  wandb_run_name: "sft-data-math"
+  wandb_entity: "eth-dl-rewards"
+  run_group: "math"
+  wandb_tags: ["math"]
+  save_every: 1
+  save_dir: "output"
+  save_locally: true
+
+preference:
+  max_number_of_preferences_per_problem: -1
+
+seed: 42
