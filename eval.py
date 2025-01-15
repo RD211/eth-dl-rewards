@@ -127,7 +127,7 @@ def main(cfg: EvalConfig):
         # Extract the current batch of texts
         chosen_batch_texts = chosen_texts[start_idx:end_idx]
         rejected_batch_texts = rejected_texts[start_idx:end_idx]
-        if batch_size == 1:
+        if batch_size == 1 or 'intern' not in model_config.model_name_or_path:
             chosen_inputs = tokenizer(chosen_texts[batch_idx], return_tensors='pt', truncation=True, max_length=4096).to(device)
             rejected_inputs = tokenizer(rejected_texts[batch_idx], return_tensors='pt', truncation=True, max_length=4096).to(device)
 
